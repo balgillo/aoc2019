@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -10,13 +10,12 @@ fn main() {
     let f = File::open(file_path).expect("Unable to open file");
     let f = BufReader::new(f);
 
-    let mut planet_name_cache = HashSet<Rc<String>>::new();
     let mut graph = HashMap::new();
     for line in f.lines() {
         let line = line.expect("Unable to read line");
         let tokens:Vec<&str> = line.split(")").collect();
-        let satellite = String::from(tokens[1]);
-        let centre = String::from(tokens[0]);
+        let satellite = tokens[1].to_string();
+        let centre = tokens[0].to_string();
         graph.insert(satellite, centre);
     }
 
