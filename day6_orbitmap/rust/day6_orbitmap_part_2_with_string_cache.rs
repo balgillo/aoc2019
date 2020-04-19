@@ -1,29 +1,62 @@
 use std::env;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Seek, SeekFrom};
+use std::io::{BufRead, BufReader};
 use std::collections::HashMap;
 
 
-struct StringCacher {
-    cache: Vec<String>
+struct Graph {
+    // see https://www.reddit.com/r/rust/comments/665vda/how_do_you_structure_a_project_in_rust_without/
+    nodes: Vec<String>,
+    edges: HashMap<usize, usize>,
 }
 
-impl StringCacher {
-    fn new() -> StringCacher{
-        StringCacher{cache: Vec::new()}
+
+impl Graph {
+    fn new() -> Graph {
+        Graph{nodes: Vec::new(), edges: HashMap::new()}
     }
 
-    fn cache(&mut self, s: &str) {
-        match self.cache.iter().find(|&cached| cached == s) {
-            None => self.cache.push(s.to_string()),
-            Some(_) => (),
+    fn add(&mut self, orbiter: &str, orbited: &str) {
+        let mut orbiter_index = None;
+        let mut orbited_index = None;
+        for (i, s) in self.nodes.iter().enumerate() {
+            if s == orbiter {
+                orbiter_index = Some(i);
+            } else if s == orbited {
+                orbited_index = Some(i);
+            }
+        }
+        match orbiter_index {
+            None => {
+                orbiter_index = Some(self.nodes.len());
+                self.nodes.push(orbiter.to_string());
+            }
+            _ => ()
+        }
+        match orbited_index {
+            None => {
+                orbited_index = Some(self.nodes.len());
+                self.nodes.push(orbited.to_string());
+            }
+            _ => ()
+        }
+        match (orbiter_index, orbited_index) {
+            (Some(s), Some(c)) => {
+                self.edges.insert(s, c);
+            },
+            _ => (),
         }
     }
 
-    fn get(&self, s: &str) -> &str {
-        match self.cache.iter().find(|&cached| cached == s) {
-            None => panic!(format!("Uncached string {}", s)),
-            Some(cached) => &cached,
+    fn get_orbited(&self, orbiter: &str) -> Option<&str> {
+        match self.nodes.iter().position(|cached| cached == orbiter) {
+            None => None,
+            Some(o) => {
+                match self.edges.get(&o) {
+                    None => None,
+                    Some(i) => Some(&self.nodes[*i]),
+                }
+            }
         }
     }
 }
@@ -36,52 +69,37 @@ fn main() {
     let f = File::open(file_path).expect("Unable to open file");
     let mut f_reader = BufReader::new(f);
 
-    let planet_name_cache = precache_planet_names(&mut f_reader);
-    f_reader.seek(SeekFrom::Start(0)).expect("Failed to seek!");
+    let graph = load_graph(&mut f_reader);
 
-    let graph: HashMap<&str, &str> = load_graph(&mut f_reader, &planet_name_cache);
-
-    let you_path = get_path_to_galactic_centre("YOU", &graph, &planet_name_cache);
-    let santa_path = get_path_to_galactic_centre("SAN", &graph, &planet_name_cache);
+    let you_path = get_path_to_galactic_centre("YOU", &graph);
+    let santa_path = get_path_to_galactic_centre("SAN", &graph);
     let transfers = count_transfers(&you_path, &santa_path);
 
     println!("{}", transfers);
 }
 
 
-fn precache_planet_names(f_reader: &mut dyn BufRead) -> StringCacher {
-    let mut cacher = StringCacher::new();
+fn load_graph(f_reader: &mut dyn BufRead) -> Graph {
+    let mut ret = Graph::new();
     for line in f_reader.lines() {
         let line = line.expect("Unable to read line");
         let tokens:Vec<&str> = line.split(")").collect();
-        cacher.cache(&tokens[1]);
-        cacher.cache(&tokens[0]);
+        let satellite = &tokens[1];
+        let centre = &tokens[0];
+        ret.add(satellite, centre);
     }
-    cacher
+    ret
 }
 
 
-fn load_graph<'a>(f_reader: &mut dyn BufRead, string_cache: &'a StringCacher) -> HashMap<&'a str, &'a str> {
-    let mut graph = HashMap::new();
-    for line in f_reader.lines() {
-        let line = line.expect("Unable to read line");
-        let tokens:Vec<&str> = line.split(")").collect();
-        let satellite = string_cache.get(&tokens[1]);
-        let centre = string_cache.get(&tokens[0]);
-        graph.insert(satellite, centre);
-    }
-    graph
-}
-
-
-fn get_path_to_galactic_centre<'a, 'b>(satellite: &'b str, graph: &HashMap::<&'a str, &'a str>, string_cache: &'a StringCacher) -> Vec<&'a str> {
+fn get_path_to_galactic_centre<'a, 'b>(satellite: &'b str, graph: &'a Graph) -> Vec<&'a str> {
     let mut ret = Vec::new();
     let mut n: &str = satellite;
     loop {
-        match graph.get(n) {
+        match graph.get_orbited(n) {
             Some(m) => {
                 n = &m;
-                ret.push(string_cache.get(n));
+                ret.push(m);
             },
             None => return ret,
         }
