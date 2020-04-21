@@ -3,75 +3,119 @@
 -export([run/1]).
 
 
-run(P) ->
-    exec(P, 0).
+run(FilePath) ->
+    {ok, Device} = file:open(FilePath, [read]),
+    Mem = try load_program(Device)
+      after file:close(Device)
+    end,
+    exec(Mem, 0).
 
 
-read(P, I, M) ->
-    Index = lists:nth(I + 1, P),
-    case M of
-        0 -> lists:nth(Index + 1, P);
-        1 -> Index
+peek(Mem, Address) ->
+    lists:nth(Address + 1, Mem).
+
+
+read(Mem, Address, Mode) ->
+    Index = peek(Mem, Address),
+    case Mode of
+        indirect -> peek(Mem, Index);
+        direct -> Index
     end.
 
 
-exec(P, I) ->
-    C = lists:nth(I + 1, P),
+poke(Mem, Address, Value) ->
+    lists:sublist(Mem, Address) ++ [Value] ++ lists:nthtail(Address + 1, Mem).
+
+
+param_mode(ParamSpec) ->
+    case ParamSpec of
+        0 -> indirect;
+        1 -> direct
+    end.
+
+
+param_1_mode(C) ->
+    param_mode((C div 100) rem 10).
+
+
+param_2_mode(C) ->
+    param_mode((C div 1000) rem 10).
+
+
+exec(Mem, I) ->
+    C = lists:nth(I + 1, Mem),
     case C rem 100 of
         1 -> % add
-            ResultIndex = lists:nth(I + 4, P),
-            A = read(P, I + 1, (C div 100) rem 10),
-            B = read(P, I + 2, (C div 1000) rem 10),
-            NP = lists:sublist(P, ResultIndex) ++ [A + B] ++ lists:nthtail(ResultIndex + 1, P),
-            exec(NP, I + 4);
+            A = read(Mem, I + 1, param_1_mode(C)),
+            B = read(Mem, I + 2, param_2_mode(C)),
+            ResultAddress = peek(Mem, I + 3),
+            NewMem = poke(Mem, ResultAddress, A + B),
+            exec(NewMem, I + 4);
         2 -> % mul
-            ResultIndex = lists:nth(I + 4, P),
-            A = read(P, I + 1, (C div 100) rem 10),
-            B = read(P, I + 2, (C div 1000) rem 10),
-            NP = lists:sublist(P, ResultIndex) ++ [A * B] ++ lists:nthtail(ResultIndex + 1, P),
-            exec(NP, I + 4);
+            A = read(Mem, I + 1, param_1_mode(C)),
+            B = read(Mem, I + 2, param_2_mode(C)),
+            ResultAddress = peek(Mem, I + 3),
+            NewMem = poke(Mem, ResultAddress, A * B),
+            exec(NewMem, I + 4);
         3 -> % input
-            ResultIndex = lists:nth(I + 2, P),
+            ResultAddress = peek(Mem, I + 1),
             case io:fread("Input: ", "~d") of
                 {ok, [InputValue]} ->
-                    NP = lists:sublist(P, ResultIndex) ++ [InputValue] ++ lists:nthtail(ResultIndex + 1, P),
-                    exec(NP, I + 2);
+                    NewMem = poke(Mem, ResultAddress, InputValue),
+                    exec(NewMem, I + 2);
                 _ -> fail
             end;
         4 -> % output
-            A = read(P, I + 1, (C div 100) rem 10),
+            A = read(Mem, I + 1, param_1_mode(C)),
             io:fwrite("~s~w~n", ["Output: ", A]),
-            exec(P, I + 2);
+            exec(Mem, I + 2);
         5 -> % jump if true
-            A = read(P, I + 1, (C div 100) rem 10),
-            B = read(P, I + 2, (C div 1000) rem 10),
+            A = read(Mem, I + 1, param_1_mode(C)),
+            B = read(Mem, I + 2, param_2_mode(C)),
             case A of
-                0 -> exec(P, I + 3);
-                _ -> exec(P, B)
+                0 -> exec(Mem, I + 3);
+                _ -> exec(Mem, B)
             end;
         6 -> % jump if false
-            A = read(P, I + 1, (C div 100) rem 10),
-            B = read(P, I + 2, (C div 1000) rem 10),
+            A = read(Mem, I + 1, param_1_mode(C)),
+            B = read(Mem, I + 2, param_2_mode(C)),
             case A of
-                0 -> exec(P, B);
-                _ -> exec(P, I + 3)
+                0 -> exec(Mem, B);
+                _ -> exec(Mem, I + 3)
             end;
         7 -> % less than
-            ResultIndex = lists:nth(I + 4, P),
-            A = read(P, I + 1, (C div 100) rem 10),
-            B = read(P, I + 2, (C div 1000) rem 10),
+            A = read(Mem, I + 1, param_1_mode(C)),
+            B = read(Mem, I + 2, param_2_mode(C)),
+            ResultAddress = peek(Mem, I + 3),
             R = if A < B -> 1; true -> 0 end,
-            NP = lists:sublist(P, ResultIndex) ++ [R] ++ lists:nthtail(ResultIndex + 1, P),
-            exec(NP, I + 4);
+            NewMem = poke(Mem, ResultAddress, R),
+            exec(NewMem, I + 4);
         8 -> % equals
-            ResultIndex = lists:nth(I + 4, P),
-            A = read(P, I + 1, (C div 100) rem 10),
-            B = read(P, I + 2, (C div 1000) rem 10),
+            A = read(Mem, I + 1, param_1_mode(C)),
+            B = read(Mem, I + 2, param_2_mode(C)),
+            ResultAddress = peek(Mem, I + 3),
             R = if A =:= B -> 1; true -> 0 end,
-            NP = lists:sublist(P, ResultIndex) ++ [R] ++ lists:nthtail(ResultIndex + 1, P),
-            exec(NP, I + 4);
+            NewMem = poke(Mem, ResultAddress, R),
+            exec(NewMem, I + 4);
         99 -> % halt
-            P
+            Mem
     end.
 
 
+parse_line(CurrentInstruction, [$,|Rest]) ->
+    [list_to_integer(CurrentInstruction)] ++ parse_line("", Rest);
+parse_line(CurrentInstruction, "\n") ->
+    [list_to_integer(CurrentInstruction)];
+parse_line(CurrentInstruction, "") ->
+    [list_to_integer(CurrentInstruction)];
+parse_line(CurrentInstruction, [A|Rest]) ->
+    parse_line(CurrentInstruction ++ [A], Rest).
+
+
+load_program(Device) ->
+    case io:get_line(Device, "") of
+        eof  -> 
+            [];
+        Line -> 
+            parse_line("", Line)
+    end.
