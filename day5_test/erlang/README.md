@@ -51,7 +51,7 @@ day5_test_part_2:run("../data/3_3_1105.csv").
 day5_test_part_2:run("../data/3_21_1008.csv").
 # ask for a single number. The program will then output 999 if the input value is below 8, output 1000 if the input value is equal to 8, or output 1001 if the input value is greater than 8.
 
-day5_test_part_2:run("../data_part_2.csv").
+day5_test_part_2:run("../data/day5_part_2.csv").
 Input: 5
 Output: 7731427
 [314,225,1,225,6,6,1105,1,238,225,104,0,1102,59,58,224,1001,

@@ -1,6 +1,7 @@
 #!/bin/python
 
 import sys
+import io
 from enum import Enum
 
 def read(mem, index, mode):
@@ -86,7 +87,14 @@ def run(mem):
         else:
             raise Exception("Bad opcode {}".format(opcode))
 
-mem = [int(n) for n in sys.argv[1].split(",")]
+file_path = sys.argv[1]
+mem = []
+with io.open(file_path, "r") as f:
+    line = f.readline()
+    if line:
+        mem = [int(x.strip()) for x in line.split(",")]
+    else:
+        raise Exception("No program in file!")
 
 run(mem)
 
