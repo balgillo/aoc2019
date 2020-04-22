@@ -1,8 +1,23 @@
 -module(day7_amplification_part_2).
 
--include_lib("eunit/include/eunit.hrl").
-
 -export([max_amp_series_output/1]).
+
+-record(computer, {
+    mem, % memory contents
+    ip, % instruction pointer
+    state, % waiting for input or halted?
+    inputs, % list of available input values
+    outputs, % list of available output values
+    output_connections % circuit or circuit_and_output
+}).
+
+% lehmer_code is a factoradic number ([0] = 1s digit, [1] = 2s digit etc.) that can be turned into
+% a permutation of self.items via the "Lehmer code"
+% See https://en.wikipedia.org/wiki/Factorial_number_system#Permutations
+-record(permutation_generator, {
+    lehmer_code, % The factoradic number representing the Lehmer code
+    items % The items to be permuted
+}).
 
 
 max_amp_series_output(FilePath) ->
@@ -10,10 +25,15 @@ max_amp_series_output(FilePath) ->
     InitMem = try load_program(Device)
       after file:close(Device)
     end,
-    calc_max_amp_series_output(InitMem, [9, 8, 7, 6, 5], 0).
+    calc_max_amp_series_output(InitMem, [5, 6, 7, 8, 9]).
+
+calc_max_amp_series_output(InitMem, AmpPhaseValues) ->
+    Permutation = #permutation_generator{lehmer_code=[0 || _ <- AmpPhaseValues], items=AmpPhaseValues},
+    calc_max_amp_series_output_for_permutation(InitMem, Permutation, 0).
 
 
-calc_max_amp_series_output(InitMem, AmpPhases, HighestOutput) ->
+calc_max_amp_series_output_for_permutation(InitMem, AmpPhasesPermutationGenerator, HighestOutput) ->
+    AmpPhases = generate_permutation(AmpPhasesPermutationGenerator),
     AmpOutput = calc_amp_series_output(InitMem, AmpPhases),
     NewHighestOutput = 
         if 
@@ -22,42 +42,11 @@ calc_max_amp_series_output(InitMem, AmpPhases, HighestOutput) ->
                 AmpOutput;
             true -> HighestOutput
         end,
-    NewAmpPhases = next_phase_sequence(AmpPhases),
-    case NewAmpPhases of
+    NextPermutation = next_permutation(AmpPhasesPermutationGenerator),
+    case NextPermutation of
         none -> NewHighestOutput;
-        _ -> calc_max_amp_series_output(InitMem, NewAmpPhases, NewHighestOutput)
+        _ -> calc_max_amp_series_output_for_permutation(InitMem, NextPermutation, NewHighestOutput)
     end.
-
-
-% Steinhaus–Johnson–Trotter algorithm
-next_phase_sequence([A, B]) when A > B ->
-    [B, A];
-next_phase_sequence([_, _]) ->
-    none;
-next_phase_sequence(L) ->
-    {BeforeMax, Max, AfterMax} = split_max(L),
-    case AfterMax of
-        [] -> 
-            NextExcludingMax = next_phase_sequence(BeforeMax ++ AfterMax),
-            case NextExcludingMax of
-                none -> none;
-                _ -> [Max] ++ NextExcludingMax
-            end;
-        [A|Rest] ->
-            BeforeMax ++ [A, Max] ++ Rest
-    end.
-
-
-split_max([A|Rest]) when Rest =/= [] ->
-    {BeforeMax, Max, AfterMax} = split_max(Rest),
-    if
-        A > Max ->
-            {[], A, Rest};
-        true ->
-            {[A|BeforeMax], Max, AfterMax}
-    end;
-split_max([A]) ->
-    {[], A, []}.
 
 
 calc_amp_series_output(InitMem, AmpPhases) ->
@@ -65,25 +54,67 @@ calc_amp_series_output(InitMem, AmpPhases) ->
     run_computers(Computers).
 
 
+next_permutation(PermutationGenerator) ->
+    NextLehmerCode = increment_factoradic(PermutationGenerator#permutation_generator.lehmer_code, 0),
+    case NextLehmerCode of
+        overflow -> none;
+        _ -> PermutationGenerator#permutation_generator{lehmer_code=NextLehmerCode}
+    end.
+
+
+increment_factoradic([A|Rest], ValuePosition) when A < ValuePosition ->
+    [A + 1|Rest];
+increment_factoradic([_|Rest], ValuePosition) ->
+    Next = increment_factoradic(Rest, ValuePosition + 1),
+    case Next of
+        overflow -> overflow;
+        _ -> [0|increment_factoradic(Rest, ValuePosition + 1)]
+    end;
+increment_factoradic([], _) ->
+    overflow.
+
+
+generate_permutation(PermutationGenerator) ->
+    build_permutation(PermutationGenerator#permutation_generator.items, 
+                    lists:reverse(PermutationGenerator#permutation_generator.lehmer_code)).
+
+
+build_permutation(Items, [Position|Rest]) ->
+    Item = lists:nth(Position + 1, Items),
+    [Item|build_permutation(lists:sublist(Items, Position) ++ lists:nthtail(Position + 1, Items), Rest)];
+build_permutation([], []) ->
+    [].
+
+
 init_computers(InitMem, [AmpPhase|Rest], PreviousAmpOutput) ->
-    {Mem, IP, State, [AmpOutput]} = exec(InitMem, 0, [AmpPhase, PreviousAmpOutput], []),
-    Pos = case Rest of
-        [] -> last;
-        _ -> notlast
+    OutputConnections = case Rest of
+        [] -> circuit_and_output;
+        _ -> circuit
     end,
-    [{Pos, Mem, IP, State, [AmpOutput]}] ++ init_computers(InitMem, Rest, AmpOutput);
+    Computer = exec(#computer{
+        mem=InitMem, ip=0, state=ready, 
+        inputs=[AmpPhase, PreviousAmpOutput], 
+        outputs=[], output_connections=OutputConnections
+    }),
+    [AmpOutput] = Computer#computer.outputs,
+    [Computer] ++ init_computers(InitMem, Rest, AmpOutput);
 init_computers(_, [], _) ->
     [].
 
 
-run_computers([{last, _, _, halted, [AmpOutput]}|_]) ->
+% circular buffer of computers.  The first item in the buffer is the next computer to run,
+% the last item is the previously-run computer.
+run_computers([#computer{state=halted, output_connections=circuit_and_output, outputs=[AmpOutput]}|_]) ->
     AmpOutput;
-run_computers([{Pos, Mem, IP, halted, [AmpOutput]}|Rest]) ->
-    run_computers(Rest ++ [{Pos, Mem, IP, halted, [AmpOutput]}]);
-run_computers([{Pos, Mem, IP, waiting_for_input, _}|Rest]) ->
-    {_, _, _, _, [AmpOutput]} = lists:last(Rest),
-    {NewMem, NewIP, NewState, NewOutput} = exec(Mem, IP, [AmpOutput], []),
-    run_computers(Rest ++ [{Pos, NewMem, NewIP, NewState, NewOutput}]).
+run_computers([Computer|Rest]) ->
+    case Computer#computer.state of
+        halted -> 
+            run_computers(Rest ++ [Computer]);
+        waiting_for_input ->
+            #computer{outputs=[AmpOutput]} = lists:last(Rest),
+            UpdatedComputer = exec(Computer#computer{inputs=[AmpOutput], outputs=[]}),
+            run_computers(Rest ++ [UpdatedComputer])
+    end.
 
 
 peek(Mem, Address) ->
@@ -109,71 +140,76 @@ param_mode(ParamSpec) ->
     end.
 
 
-param_1_mode(C) ->
-    param_mode((C div 100) rem 10).
+read_param_1(Computer) ->
+    Mem = Computer#computer.mem,
+    IP = Computer#computer.ip,
+    read(Mem, IP + 1, param_mode((peek(Mem, IP) div 100) rem 10)).
 
 
-param_2_mode(C) ->
-    param_mode((C div 1000) rem 10).
+read_param_2(Computer) ->
+    Mem = Computer#computer.mem,
+    IP = Computer#computer.ip,
+    read(Mem, IP + 2, param_mode((peek(Mem, IP) div 1000) rem 10)).
 
 
-exec(Mem, IP, Input, Output) ->
-    C = peek(Mem, IP),
-    case C rem 100 of
+exec(Computer) ->
+    Mem = Computer#computer.mem,
+    IP = Computer#computer.ip,
+    Cmd = peek(Mem, IP),
+    case Cmd rem 100 of
         1 -> % add
-            A = read(Mem, IP + 1, param_1_mode(C)),
-            B = read(Mem, IP + 2, param_2_mode(C)),
+            A = read_param_1(Computer),
+            B = read_param_2(Computer),
             ResultAddress = peek(Mem, IP + 3),
-            NewMem = poke(Mem, ResultAddress, A + B),
-            exec(NewMem, IP + 4, Input, Output);
+            exec(Computer#computer{mem=poke(Mem, ResultAddress, A + B), ip=IP + 4});
         2 -> % mul
-            A = read(Mem, IP + 1, param_1_mode(C)),
-            B = read(Mem, IP + 2, param_2_mode(C)),
+            A = read_param_1(Computer),
+            B = read_param_2(Computer),
             ResultAddress = peek(Mem, IP + 3),
-            NewMem = poke(Mem, ResultAddress, A * B),
-            exec(NewMem, IP + 4, Input, Output);
+            exec(Computer#computer{mem=poke(Mem, ResultAddress, A * B), ip=IP + 4});
         3 -> % input
             ResultAddress = peek(Mem, IP + 1),
-            case Input of
+            case Computer#computer.inputs of
                 [InputValue|Rest] ->
-                    NewMem = poke(Mem, ResultAddress, InputValue),
-                    exec(NewMem, IP + 2, Rest, Output);
+                    exec(Computer#computer{mem=poke(Mem, ResultAddress, InputValue), ip=IP + 2, inputs=Rest});
                 [] ->
-                    {Mem, IP, waiting_for_input, Output}
+                    Computer#computer{state=waiting_for_input}
             end;
         4 -> % output
-            A = read(Mem, IP + 1, param_1_mode(C)),
-            exec(Mem, IP + 2, Input, Output ++ [A]);
+            A = read_param_1(Computer),
+            exec(Computer#computer{ip=IP + 2, outputs=Computer#computer.outputs ++ [A]});
         5 -> % jump if true
-            A = read(Mem, IP + 1, param_1_mode(C)),
-            B = read(Mem, IP + 2, param_2_mode(C)),
+            A = read_param_1(Computer),
+            B = read_param_2(Computer),
             case A of
-                0 -> exec(Mem, IP + 3, Input, Output);
-                _ -> exec(Mem, B, Input, Output)
+                0 -> 
+                    exec(Computer#computer{ip=IP + 3});
+                _ ->
+                    exec(Computer#computer{ip=B})
             end;
         6 -> % jump if false
-            A = read(Mem, IP + 1, param_1_mode(C)),
-            B = read(Mem, IP + 2, param_2_mode(C)),
+            A = read_param_1(Computer),
+            B = read_param_2(Computer),
             case A of
-                0 -> exec(Mem, B, Input, Output);
-                _ -> exec(Mem, IP + 3, Input, Output)
+                0 ->
+                    exec(Computer#computer{ip=B});
+                _ -> 
+                    exec(Computer#computer{ip=IP + 3})
             end;
         7 -> % less than
-            A = read(Mem, IP + 1, param_1_mode(C)),
-            B = read(Mem, IP + 2, param_2_mode(C)),
+            A = read_param_1(Computer),
+            B = read_param_2(Computer),
             ResultAddress = peek(Mem, IP + 3),
             R = if A < B -> 1; true -> 0 end,
-            NewMem = poke(Mem, ResultAddress, R),
-            exec(NewMem, IP + 4, Input, Output);
+            exec(Computer#computer{mem=poke(Mem, ResultAddress, R), ip=IP + 4});
         8 -> % equals
-            A = read(Mem, IP + 1, param_1_mode(C)),
-            B = read(Mem, IP + 2, param_2_mode(C)),
+            A = read_param_1(Computer),
+            B = read_param_2(Computer),
             ResultAddress = peek(Mem, IP + 3),
             R = if A =:= B -> 1; true -> 0 end,
-            NewMem = poke(Mem, ResultAddress, R),
-            exec(NewMem, IP + 4, Input, Output);
+            exec(Computer#computer{mem=poke(Mem, ResultAddress, R), ip=IP + 4});
         99 -> % halt
-            {Mem, IP, halted, Output}
+            Computer#computer{state=halted}
     end.
 
 
