@@ -109,16 +109,14 @@ class IntCodeComputer:
 class PermutationGenerator:
     def __init__(self, items):
         self.items = items
-        # self.lehmer_code is a factoradic number ([0] = 1s digit, [1] = 2s digit etc.) that can be turned into
+        # self.lehmer_code is a factoradic number ([0] = ones digit, 
+        # [1] = twos digit, [2] = threes digit etc.) that can be turned into
         # a permutation of self.items via the "Lehmer code"
         # See https://en.wikipedia.org/wiki/Factorial_number_system#Permutations
         self.lehmer_code = [0 for i in range(0, len(self.items))]
     
     def __iter__(self):
         return self
-
-    def __len__(self):
-        return len(self.items)
 
     def __next__(self):
         if self.lehmer_code == None:
@@ -147,6 +145,10 @@ class PermutationGenerator:
         return self.__next__()
 
 
+def permutations(items):
+    return PermutationGenerator(items)
+
+
 file_path = sys.argv[1]
 init_mem = []
 with io.open(file_path, "r") as f:
@@ -159,7 +161,7 @@ with io.open(file_path, "r") as f:
 
 highest_output = 0
 
-for amp_phases in PermutationGenerator([5, 6, 7, 8, 9]):
+for amp_phases in permutations([5, 6, 7, 8, 9]):
     amp_output = 0
 
     # init computers

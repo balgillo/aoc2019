@@ -11,11 +11,12 @@
     output_connections % circuit or circuit_and_output
 }).
 
+
 % lehmer_code is a factoradic number ([0] = 1s digit, [1] = 2s digit etc.) that can be turned into
 % a permutation of self.items via the "Lehmer code"
 % See https://en.wikipedia.org/wiki/Factorial_number_system#Permutations
 -record(permutation_generator, {
-    lehmer_code, % The factoradic number representing the Lehmer code
+    lehmer_code, % The factoradic number representing the permutation
     items % The items to be permuted
 }).
 
@@ -106,15 +107,12 @@ init_computers(_, [], _) ->
 % the last item is the previously-run computer.
 run_computers([#computer{state=halted, output_connections=circuit_and_output, outputs=[AmpOutput]}|_]) ->
     AmpOutput;
-run_computers([Computer|Rest]) ->
-    case Computer#computer.state of
-        halted -> 
-            run_computers(Rest ++ [Computer]);
-        waiting_for_input ->
-            #computer{outputs=[AmpOutput]} = lists:last(Rest),
-            UpdatedComputer = exec(Computer#computer{inputs=[AmpOutput], outputs=[]}),
-            run_computers(Rest ++ [UpdatedComputer])
-    end.
+run_computers([#computer{state=halted} = Computer|Rest]) ->
+    run_computers(Rest ++ [Computer]);
+run_computers([#computer{state=waiting_for_input} = Computer|Rest]) ->
+    #computer{outputs=[AmpOutput]} = lists:last(Rest),
+    UpdatedComputer = exec(Computer#computer{inputs=[AmpOutput], outputs=[]}),
+    run_computers(Rest ++ [UpdatedComputer]).
 
 
 peek(Mem, Address) ->

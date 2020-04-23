@@ -110,9 +110,6 @@ class PermutationGenerator:
     def __iter__(self):
         return self
 
-    def __len__(self):
-        return len(self.items)
-
     def __next__(self):
         if self.lehmer_code == None:
             raise StopIteration
@@ -140,6 +137,10 @@ class PermutationGenerator:
         return self.__next__()
 
 
+def permutations(items):
+    return PermutationGenerator(items)
+
+
 file_path = sys.argv[1]
 init_mem = []
 with io.open(file_path, "r") as f:
@@ -152,7 +153,7 @@ with io.open(file_path, "r") as f:
 
 highest_output = 0
 
-for amp_phases in PermutationGenerator([0, 1, 2, 3, 4]):
+for amp_phases in permutations([0, 1, 2, 3, 4]):
     amp_output = 0
     for amp_phase in amp_phases:
         output = []
