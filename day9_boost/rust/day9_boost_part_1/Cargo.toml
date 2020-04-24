@@ -1,0 +1,13 @@
+[package]
+name = "day9_boost_part_1"
+version = "0.1.0"
+authors = ["balgillo"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+num = "0.2.1"
+num-bigint = "0.2.6"
+num-traits = "0.2.11"
+lazy_static = "1.4.0"
