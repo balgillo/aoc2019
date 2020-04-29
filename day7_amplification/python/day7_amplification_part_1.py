@@ -21,11 +21,11 @@ class ParamMode(Enum):
 
     @staticmethod
     def param_1_mode(cmd):
-        return ParamMode.from_int((cmd / 100) % 10)
+        return ParamMode.from_int((cmd // 100) % 10)
 
     @staticmethod
     def param_2_mode(cmd):
-        return ParamMode.from_int((cmd / 1000) % 10)
+        return ParamMode.from_int((cmd // 1000) % 10)
 
 
 class IntCodeComputer:

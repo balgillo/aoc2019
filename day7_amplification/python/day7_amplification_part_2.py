@@ -44,10 +44,10 @@ class IntCodeComputer:
             raise Exception("Bad read mode {}".format(mode))
 
     def read_param_1(self):
-        return self.read(self.ip + 1, ParamMode.from_int((self.mem[self.ip] / 100) % 10))
+        return self.read(self.ip + 1, ParamMode.from_int((self.mem[self.ip] // 100) % 10))
 
     def read_param_2(self):
-        return self.read(self.ip + 2, ParamMode.from_int((self.mem[self.ip] / 1000) % 10))
+        return self.read(self.ip + 2, ParamMode.from_int((self.mem[self.ip] // 1000) % 10))
 
     def run(self):
         self.state = ComputerState.ready

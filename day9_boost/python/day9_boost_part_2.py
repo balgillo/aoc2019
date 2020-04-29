@@ -56,10 +56,10 @@ class IntCodeComputer:
             raise Exception("Bad read mode {}".format(mode))
 
     def read_param_1(self):
-        return self.read(self.ip + 1, ParamMode.from_int((self.peek(self.ip) / 100) % 10))
+        return self.read(self.ip + 1, ParamMode.from_int((self.peek(self.ip) // 100) % 10))
 
     def read_param_2(self):
-        return self.read(self.ip + 2, ParamMode.from_int((self.peek(self.ip) / 1000) % 10))
+        return self.read(self.ip + 2, ParamMode.from_int((self.peek(self.ip) // 1000) % 10))
 
     def address_from_param(self, param_address, mode):
         if mode == ParamMode.indirect:
@@ -72,13 +72,13 @@ class IntCodeComputer:
             raise Exception("Bad param mode {}".format(mode))
 
     def address_from_param_1(self):
-        return self.address_from_param(self.ip + 1, ParamMode.from_int((self.peek(self.ip) / 100) % 10))
+        return self.address_from_param(self.ip + 1, ParamMode.from_int((self.peek(self.ip) // 100) % 10))
 
     def address_from_param_2(self):
-        return self.address_from_param(self.ip + 2, ParamMode.from_int((self.peek(self.ip) / 1000) % 10))
+        return self.address_from_param(self.ip + 2, ParamMode.from_int((self.peek(self.ip) // 1000) % 10))
 
     def address_from_param_3(self):
-        return self.address_from_param(self.ip + 3, ParamMode.from_int((self.peek(self.ip) / 10000) % 10))
+        return self.address_from_param(self.ip + 3, ParamMode.from_int((self.peek(self.ip) // 10000) % 10))
 
     def poke(self, address, value):
         if len(self.mem) <= address:

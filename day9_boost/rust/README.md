@@ -1,5 +1,9 @@
 ```
+Some commands you might need to run to set things up
 sudo yum install cargo
+
+rustup install stable
+rustup default stable
 
 cargo build --manifest-path day9_boost_part_1/Cargo.toml
 ```
