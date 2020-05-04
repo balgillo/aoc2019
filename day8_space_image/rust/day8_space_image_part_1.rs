@@ -23,11 +23,11 @@ fn load_image(width: usize, height: usize, file_path: &str) -> SpaceImage {
     loop {
         match f.read(&mut buf) {
             Ok(1) => {
-                match buf[0] as char {
-                    '0' => builder.append_pixel(PixelColour::Black),
-                    '1' => builder.append_pixel(PixelColour::White),
-                    '2' => builder.append_pixel(PixelColour::Transparent),
-                    '3' | '4' | '5' | '6' | '7' | '8' | '9' => builder.append_pixel(PixelColour::Other),
+                match buf[0] {
+                    b'0' => builder.append_pixel(PixelColour::Black),
+                    b'1' => builder.append_pixel(PixelColour::White),
+                    b'2' => builder.append_pixel(PixelColour::Transparent),
+                    b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => builder.append_pixel(PixelColour::Other),
                     _ => ()  // ignore line breaks, whitespace etc.
                 };
             },

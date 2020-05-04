@@ -1,23 +1,28 @@
 ```
-python day10_asteroids_part_1.py ../data/small_example.txt
-# Best monitoring station is at (3, 4), from where it can detect 8 asteroids
+rustc day10_asteroids_part_1.rs
 
-python day10_asteroids_part_1.py ../data/medium_example_1.txt
-Best monitoring station is at (5, 8), from where it can detect 33 asteroids
+day10_asteroids_part_1.exe ../data/small_example.txt
+Best monitoring station is at (3, 4), from where 8 asteroids are visible
 
-python day10_asteroids_part_1.py ../data/medium_example_2.txt
-Best monitoring station is at (1, 2), from where it can detect 35 asteroids
+day10_asteroids_part_1.exe ../data/medium_example_1.txt
+Best monitoring station is at (5, 8), from where 33 asteroids are visible
 
-python day10_asteroids_part_1.py ../data/medium_example_3.txt
-Best monitoring station is at (6, 3), from where it can detect 41 asteroids
+day10_asteroids_part_1.exe ../data/medium_example_2.txt
+Best monitoring station is at (1, 2), from where 35 asteroids are visible
 
-python day10_asteroids_part_1.py ../data/large_example.txt
-Best monitoring station is at (11, 13), from where it can detect 210 asteroids
+day10_asteroids_part_1.exe ../data/medium_example_3.txt
+Best monitoring station is at (6, 3), from where 41 asteroids are visible
 
-python day10_asteroids_part_1.py ../data/puzzle_input.txt
+day10_asteroids_part_1.exe ../data/large_example.txt
+Best monitoring station is at (11, 13), from where 210 asteroids are visible
+
+day10_asteroids_part_1.exe ../data/puzzle_input.txt
+Best monitoring station is at (30, 34), from where 344 asteroids are visible
 
 
-python day10_asteroids_part_2.py ../data/blast_example.txt
+rustc day10_asteroids_part_2.rs
+
+day10_asteroids_part_2.exe ../data/blast_example.txt
 Blasting asteroids from {point,8,3} from where 30 asteroids are visible.
 Blasted asteroid #1 at {point,8,1}
 Blasted asteroid #2 at {point,9,0}
@@ -58,13 +63,12 @@ Blasted asteroid #36 at {point,13,3}
 {}
 
 
-python day10_asteroids_part_2.py ../data/large_example.txt
+day10_asteroids_part_2.exe ../data/large_example.txt
 ... #200 blasted (8,2) ...
 
 
-python day10_asteroids_part_2.py ../data/puzzle_input.txt
+day10_asteroids_part_2.exe ../data/puzzle_input.txt
 ... #200 blasted (27, 32) ...
-
 
 
 ```
