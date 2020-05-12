@@ -144,7 +144,7 @@ parse_line(LineSoFar, [A|Rest]) ->
 
 load_map(Device) ->
     case io:get_line(Device, "") of
-        eof  -> 
+        eof -> 
             [];
         Line -> 
             [parse_line("", Line)|load_map(Device)]
