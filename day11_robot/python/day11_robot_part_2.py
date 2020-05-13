@@ -10,15 +10,17 @@ class Robot:
         self.pos = (0, 0)
         self.direction = (0, -1)
         self.painted_panels = {}
+        # initial panel is white
+        self.paint_panel(1)
     
-    def get_panel_colour(self):
-        return self.painted_panels.get(self.pos, 0) # painted colour or black if never painted
+    def get_panel_colour(self, position):
+        return self.painted_panels.get(position, 0) # painted colour or black if never painted
     
     def paint_panel(self, colour):
         self.painted_panels[self.pos] = colour
 
     def run(self):
-        self.computer.inputs = [self.get_panel_colour()]
+        self.computer.inputs = [self.get_panel_colour(self.pos)]
         self.computer.run()
         if self.computer.is_halted():
             return False
@@ -39,6 +41,23 @@ class Robot:
             self.pos = (x + xd, y + yd)
             return True
 
+    def print_panel_paint_pattern(self):
+        (x_min, y_min, x_max, y_max) = (0, 0, 0, 0)
+        for (x, y) in self.painted_panels:
+            if x < x_min:
+                x_min = x
+            elif x > x_max:
+                x_max = x
+            if y < y_min:
+                y_min = y
+            elif y > y_max:
+                y_max = y
+        for y in range(y_min, y_max + 1):
+            l = ""
+            for x in range(x_min, x_max + 1):
+                l += "XX" if self.get_panel_colour((x, y)) else "  "
+            print(l)
+
 
 file_path = "../data/puzzle_input.csv"
 init_mem = []
@@ -53,5 +72,4 @@ robot = Robot(init_mem)
 while robot.run():
     pass
 
-
-print("Output: {}\n".format(len(robot.painted_panels)))
+robot.print_panel_paint_pattern()
